@@ -69,7 +69,7 @@
 <body>
 <div class="card">
   <div class="brand">@ARPANMODX</div>
-  <div class="sub">LINK PROTECTER</div>
+  <div class="sub">LINK PROTECTION</div>
 
   <div class="icon">🔒</div>
   <div class="title">This link is protected</div>
@@ -125,10 +125,18 @@
 
       if (data.url) {
         document.getElementById('spinner').style.display = 'none';
-        document.getElementById('status').textContent = '✅ Verified! Redirecting...';
+        document.getElementById('status').textContent = '✅ Verified! Loading...';
         document.getElementById('status').className = 'success';
         setTimeout(() => {
-          window.location.href = data.url;
+          document.querySelector('.card').style.display = 'none';
+          document.body.style.padding = '0';
+          document.body.style.margin = '0';
+          document.body.style.overflow = 'hidden';
+          document.body.style.background = '#000';
+          const frame = document.createElement('iframe');
+          frame.src = data.url;
+          frame.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;border:none;z-index:9999;';
+          document.body.appendChild(frame);
         }, 800);
       } else {
         document.getElementById('spinner').style.display = 'none';
