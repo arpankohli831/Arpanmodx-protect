@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Verifying... | @ARPANMODX</title>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      min-height: 100vh;
+      background: #0a0a0a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+      padding: 20px;
+    }
+    .card {
+      background: #111;
+      border: 1px solid #FFD700;
+      border-radius: 16px;
+      padding: 32px 24px;
+      text-align: center;
+      max-width: 360px;
+      width: 100%;
+      box-shadow: 0 0 40px rgba(255,215,0,0.1);
+    }
+    .brand { font-size: 22px; font-weight: 800; color: #FFD700; letter-spacing: 3px; }
+    .sub   { font-size: 11px; color: #666; letter-spacing: 2px; margin-bottom: 24px; }
+    .icon  { font-size: 44px; margin-bottom: 10px; }
+    .title { font-size: 16px; color: #ddd; margin-bottom: 6px; }
+    .desc  { font-size: 13px; color: #666; margin-bottom: 24px; }
+    .captcha-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+      min-height: 65px;
+      align-items: center;
+    }
+    .spinner {
+      display: none;
+      width: 28px; height: 28px;
+      border: 3px solid #222;
+      border-top-color: #FFD700;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #status { font-size: 14px; color: #666; min-height: 20px; }
+    #status.success { color: #4CAF50; font-weight: 600; }
+    #status.error   { color: #f44336; }
+    .note { margin-top: 20px; font-size: 11px; color: #444; }
+    #errorBox {
+      display: none;
+      margin-top: 16px;
+      background: #1a0a0a;
+      border: 1px solid #f44;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 13px;
+      color: #f66;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">@ARPANMODX</div>
+  <div class="sub">LINK PROTECTER</div>
+
+  <div class="icon">🔒</div>
+  <div class="title">This link is protected</div>
+  <div class="desc">Solve the CAPTCHA to get your link</div>
+
+  <div class="captcha-wrap">
+    <div class="cf-turnstile"
+      data-sitekey="0x4AAAAAADr-pIx3m-2LpVlT"
+      data-callback="onVerify"
+      data-theme="dark">
+    </div>
+  </div>
+
+  <div class="spinner" id="spinner"></div>
+  <div id="status">👆 Complete the verification above</div>
+  <div id="errorBox"></div>
+
+  <div class="note">🛡️ Protected by Cloudflare Turnstile<br/>Bots cannot access this link</div>
+</div>
+
+<script>
+  // Get encrypted token from URL
+  function getToken() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('t');
+  }
+
+  const linkToken = getToken();
+
+  if (!linkToken) {
+    document.getElementById('status').textContent = '❌ Invalid link!';
+    document.getElementById('status').className = 'error';
+  }
+
+  async function onVerify(captchaToken) {
+    if (!linkToken) return;
+
+    document.getElementById('spinner').style.display = 'block';
+    document.getElementById('status').textContent = '⏳ Verifying...';
+    document.getElementById('status').className = '';
+
+    try {
+      const res = await fetch('/api/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          captcha_token: captchaToken,
+          link_token: linkToken
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.url) {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('status').textContent = '✅ Verified! Redirecting...';
+        document.getElementById('status').className = 'success';
+        setTimeout(() => {
+          window.location.href = data.url;
+        }, 800);
+      } else {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('status').textContent = '❌ Verification failed!';
+        document.getElementById('status').className = 'error';
+        document.getElementById('errorBox').textContent = data.error || 'Please refresh and try again.';
+        document.getElementById('errorBox').style.display = 'block';
+      }
+    } catch (e) {
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('status').textContent = '❌ Error. Please refresh.';
+      document.getElementById('status').className = 'error';
+    }
+  }
+</script>
+</body>
+</html>
