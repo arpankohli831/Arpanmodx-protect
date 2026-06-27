@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel | @ARPANMODX</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      min-height: 100vh;
+      background: #0a0a0a;
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: #111;
+      border: 1px solid #FFD700;
+      border-radius: 16px;
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 0 40px rgba(255,215,0,0.1);
+    }
+    .brand { font-size: 22px; font-weight: 800; color: #FFD700; letter-spacing: 3px; text-align: center; }
+    .sub   { font-size: 11px; color: #666; letter-spacing: 2px; text-align: center; margin-bottom: 24px; }
+    label  { font-size: 12px; color: #888; display: block; margin-bottom: 6px; }
+    input, textarea {
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      margin-bottom: 16px;
+      transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus { border-color: #FFD700; }
+    input[type="password"] { letter-spacing: 3px; }
+    textarea { resize: none; height: 70px; font-family: monospace; font-size: 13px; }
+    .btn {
+      width: 100%;
+      padding: 13px;
+      background: #FFD700;
+      color: #000;
+      font-size: 15px;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .result {
+      display: none;
+      margin-top: 20px;
+      background: #0d1a0d;
+      border: 1px solid #4CAF50;
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .result-label { font-size: 11px; color: #4CAF50; margin-bottom: 8px; letter-spacing: 1px; }
+    .result-url {
+      font-family: monospace;
+      font-size: 12px;
+      color: #ccc;
+      word-break: break-all;
+      margin-bottom: 10px;
+    }
+    .copy-btn {
+      width: 100%;
+      padding: 9px;
+      background: #1a2e1a;
+      border: 1px solid #4CAF50;
+      color: #4CAF50;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .copy-btn:hover { background: #243a24; }
+    .error {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: #1a0a0a;
+      border: 1px solid #f44;
+      border-radius: 8px;
+      color: #f66;
+      font-size: 13px;
+    }
+    #loginSection { }
+    #mainSection  { display: none; }
+    .divider {
+      border: none;
+      border-top: 1px solid #222;
+      margin: 20px 0;
+    }
+    .note { font-size: 11px; color: #555; text-align: center; margin-top: 16px; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="card" id="loginSection">
+  <div class="brand">@ARPANMODX</div>
+  <div class="sub">ADMIN PANEL</div>
+
+  <label>🔑 Admin Password</label>
+  <input type="password" id="passwordInput" placeholder="Enter your password" onkeydown="if(event.key==='Enter') login()"/>
+
+  <button class="btn" onclick="login()">LOGIN</button>
+  <div class="error" id="loginError">❌ Wrong password!</div>
+</div>
+
+<!-- MAIN PANEL -->
+<div class="card" id="mainSection">
+  <div class="brand">@ARPANMODX</div>
+  <div class="sub">LINK PROTECTOR</div>
+
+  <label>🔗 Paste your link to protect</label>
+  <textarea id="linkInput" placeholder="https://vplink.in/xxxxx&#10;or any other link..."></textarea>
+
+  <button class="btn" id="protectBtn" onclick="protectLink()">🔒 PROTECT LINK</button>
+
+  <div class="result" id="result">
+    <div class="result-label">✅ PROTECTED LINK READY — SHARE THIS:</div>
+    <div class="result-url" id="resultUrl"></div>
+    <button class="copy-btn" onclick="copyLink()">📋 COPY LINK</button>
+  </div>
+
+  <div class="error" id="mainError"></div>
+
+  <hr class="divider"/>
+  <div class="note">🛡️ Links are encrypted — bots cannot bypass<br/>Real users must solve CAPTCHA to access</div>
+</div>
+
+<script>
+  let adminPassword = '';
+
+  function login() {
+    const pwd = document.getElementById('passwordInput').value;
+    if (!pwd) return;
+
+    adminPassword = pwd;
+
+    // Try a test generate to verify password
+    fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://test.com', password: pwd })
+    }).then(r => r.json()).then(data => {
+      if (data.error && data.error === 'Wrong password') {
+        document.getElementById('loginError').style.display = 'block';
+        adminPassword = '';
+      } else {
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('mainSection').style.display = 'block';
+      }
+    }).catch(() => {
+      document.getElementById('loginError').style.display = 'block';
+    });
+  }
+
+  async function protectLink() {
+    const url = document.getElementById('linkInput').value.trim();
+    const btn = document.getElementById('protectBtn');
+    const errDiv = document.getElementById('mainError');
+    const result = document.getElementById('result');
+
+    errDiv.style.display = 'none';
+    result.style.display = 'none';
+
+    if (!url) {
+      errDiv.textContent = '❌ Please paste a link first!';
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Protecting...';
+
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, password: adminPassword })
+      });
+
+      const data = await res.json();
+
+      if (data.protected_url) {
+        document.getElementById('resultUrl').textContent = data.protected_url;
+        result.style.display = 'block';
+      } else {
+        errDiv.textContent = '❌ ' + (data.error || 'Something went wrong');
+        errDiv.style.display = 'block';
+      }
+    } catch (e) {
+      errDiv.textContent = '❌ Server error. Try again.';
+      errDiv.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.textContent = '🔒 PROTECT LINK';
+  }
+
+  function copyLink() {
+    const url = document.getElementById('resultUrl').textContent;
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = '✅ COPIED!';
+      setTimeout(() => btn.textContent = '📋 COPY LINK', 2000);
+    });
+  }
+</script>
+</body>
+  </html>
+  
