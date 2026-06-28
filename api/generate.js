@@ -28,7 +28,7 @@ export default async function handler(req, res) {
         Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(['SET', `link:${shortId}`, payload, 'EX', '900'])
+      body: JSON.stringify(['SET', `link:${shortId}`, payload])
     });
 
     const redisData = await redisRes.json();
