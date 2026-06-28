@@ -7,7 +7,6 @@ export default function handler(req, res) {
 
   const { url, password } = req.body;
 
-  // Check admin password
   if (password !== process.env.ADMIN_PASSWORD) {
     return res.status(401).json({ error: 'Wrong password' });
   }
@@ -17,15 +16,16 @@ export default function handler(req, res) {
   }
 
   try {
-    // Encrypt the URL using AES-256-CBC
     const key = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
     const iv  = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
 
-    let encrypted = cipher.update(url, 'utf8', 'hex');
+    // Include creation timestamp in token (for expiry check)
+    const payload = JSON.stringify({ url, created_at: Date.now() });
+
+    let encrypted = cipher.update(payload, 'utf8', 'hex');
     encrypted += cipher.final('hex');
 
-    // Combine IV + encrypted into a base64url token
     const token = Buffer.from(iv.toString('hex') + ':' + encrypted).toString('base64url');
 
     const siteUrl = process.env.SITE_URL || 'https://arpanmodx-protect.vercel.app';
