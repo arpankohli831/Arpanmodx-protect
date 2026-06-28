@@ -32,14 +32,47 @@
     .sub   { font-size: 11px; color: #666; letter-spacing: 2px; margin-bottom: 24px; }
     .icon  { font-size: 44px; margin-bottom: 10px; }
     .title { font-size: 16px; color: #ddd; margin-bottom: 6px; }
-    .desc  { font-size: 13px; color: #666; margin-bottom: 24px; }
+    .desc  { font-size: 13px; color: #666; margin-bottom: 20px; }
+
+    .countdown-wrap { margin-bottom: 20px; }
+    .countdown-ring {
+      position: relative;
+      width: 80px; height: 80px;
+      margin: 0 auto 10px;
+    }
+    .countdown-ring svg {
+      transform: rotate(-90deg);
+    }
+    .countdown-ring circle {
+      fill: none;
+      stroke: #222;
+      stroke-width: 5;
+    }
+    .countdown-ring .progress {
+      stroke: #FFD700;
+      stroke-dasharray: 220;
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 1s linear;
+    }
+    .countdown-num {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 28px;
+      font-weight: 800;
+      color: #FFD700;
+    }
+    .countdown-label { font-size: 12px; color: #666; }
+
     .captcha-wrap {
-      display: flex;
+      display: none;
       justify-content: center;
       margin-bottom: 20px;
       min-height: 65px;
       align-items: center;
     }
+    .captcha-wrap.show { display: flex; }
+
     .spinner {
       display: none;
       width: 28px; height: 28px;
@@ -50,10 +83,11 @@
       margin: 0 auto 12px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
     #status { font-size: 14px; color: #666; min-height: 20px; }
     #status.success { color: #4CAF50; font-weight: 600; }
     #status.error   { color: #f44336; }
-    .note { margin-top: 20px; font-size: 11px; color: #444; }
+
     #errorBox {
       display: none;
       margin-top: 16px;
@@ -64,18 +98,32 @@
       font-size: 13px;
       color: #f66;
     }
+    .note { margin-top: 20px; font-size: 11px; color: #444; }
   </style>
 </head>
 <body>
 <div class="card">
   <div class="brand">@ARPANMODX</div>
-  <div class="sub">LIBK PROTECTION</div>
+  <div class="sub">LINK IS PROTECTED</div>
 
   <div class="icon">🔒</div>
   <div class="title">This link is protected</div>
-  <div class="desc">Solve the CAPTCHA to get your link</div>
+  <div class="desc">Please wait for verification</div>
 
-  <div class="captcha-wrap">
+  <!-- Countdown Ring -->
+  <div class="countdown-wrap" id="countdownWrap">
+    <div class="countdown-ring">
+      <svg width="80" height="80" viewBox="0 0 80 80">
+        <circle cx="40" cy="40" r="35"/>
+        <circle class="progress" id="progressRing" cx="40" cy="40" r="35"/>
+      </svg>
+      <div class="countdown-num" id="countdownNum">5</div>
+    </div>
+    <div class="countdown-label">Please wait...</div>
+  </div>
+
+  <!-- CAPTCHA -->
+  <div class="captcha-wrap" id="captchaWrap">
     <div class="cf-turnstile"
       data-sitekey="0x4AAAAAADr-pIx3m-2LpVlT"
       data-callback="onVerify"
@@ -84,32 +132,67 @@
   </div>
 
   <div class="spinner" id="spinner"></div>
-  <div id="status">👆 Complete the verification above</div>
+  <div id="status">⏳ Please wait 5 seconds...</div>
   <div id="errorBox"></div>
 
   <div class="note">🛡️ Protected by Cloudflare Turnstile<br/>Bots cannot access this link</div>
 </div>
 
 <script>
-  // Get encrypted token from URL
-  function getToken() {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('t');
-  }
-
-  const linkToken = getToken();
+  let pageToken = null;
+  const linkToken = new URLSearchParams(window.location.search).get('t');
 
   if (!linkToken) {
     document.getElementById('status').textContent = '❌ Invalid link!';
     document.getElementById('status').className = 'error';
+    document.getElementById('countdownWrap').style.display = 'none';
+  } else {
+    // Get server-signed page token immediately on page load
+    fetch('/api/init', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      .then(r => r.json())
+      .then(data => { pageToken = data.page_token; })
+      .catch(() => { pageToken = null; });
+
+    // Start 5 second countdown
+    let seconds = 5;
+    const total = 220; // circle circumference
+    const progressEl = document.getElementById('progressRing');
+    const countdownEl = document.getElementById('countdownNum');
+    const statusEl    = document.getElementById('status');
+
+    // Initialize ring
+    progressEl.style.strokeDashoffset = 0;
+
+    const timer = setInterval(() => {
+      seconds--;
+      countdownEl.textContent = seconds;
+      statusEl.textContent = `⏳ Please wait ${seconds} seconds...`;
+
+      // Update ring progress
+      progressEl.style.strokeDashoffset = total - (total * seconds / 5);
+
+      if (seconds <= 0) {
+        clearInterval(timer);
+        document.getElementById('countdownWrap').style.display = 'none';
+        document.getElementById('captchaWrap').classList.add('show');
+        statusEl.textContent = '👆 Complete the verification above';
+      }
+    }, 1000);
   }
 
   async function onVerify(captchaToken) {
     if (!linkToken) return;
 
+    if (!pageToken) {
+      document.getElementById('status').textContent = '❌ Session error. Please refresh.';
+      document.getElementById('status').className = 'error';
+      return;
+    }
+
     document.getElementById('spinner').style.display = 'block';
     document.getElementById('status').textContent = '⏳ Verifying...';
     document.getElementById('status').className = '';
+    document.getElementById('errorBox').style.display = 'none';
 
     try {
       const res = await fetch('/api/verify', {
@@ -117,7 +200,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           captcha_token: captchaToken,
-          link_token: linkToken
+          link_token:    linkToken,
+          page_token:    pageToken   // server-signed, bot cannot fake!
         })
       });
 
@@ -125,24 +209,14 @@
 
       if (data.url) {
         document.getElementById('spinner').style.display = 'none';
-        document.getElementById('status').textContent = '✅ Verified! Loading...';
+        document.getElementById('status').textContent = '✅ Verified! Redirecting...';
         document.getElementById('status').className = 'success';
-        setTimeout(() => {
-          document.querySelector('.card').style.display = 'none';
-          document.body.style.padding = '0';
-          document.body.style.margin = '0';
-          document.body.style.overflow = 'hidden';
-          document.body.style.background = '#000';
-          const frame = document.createElement('iframe');
-          frame.src = data.url;
-          frame.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;border:none;z-index:9999;';
-          document.body.appendChild(frame);
-        }, 800);
+        setTimeout(() => { window.location.href = data.url; }, 800);
       } else {
         document.getElementById('spinner').style.display = 'none';
-        document.getElementById('status').textContent = '❌ Verification failed!';
+        document.getElementById('status').textContent = '❌ ' + (data.error || 'Verification failed!');
         document.getElementById('status').className = 'error';
-        document.getElementById('errorBox').textContent = data.error || 'Please refresh and try again.';
+        document.getElementById('errorBox').textContent = 'Please refresh and try again.';
         document.getElementById('errorBox').style.display = 'block';
       }
     } catch (e) {
